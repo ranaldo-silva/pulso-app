@@ -5,6 +5,8 @@ import {
   mediaDevices,
 } from 'react-native-webrtc';
 
+import type MediaStream from 'react-native-webrtc/lib/typescript/MediaStream';
+
 const configuration = {
   iceServers: [
     {
@@ -14,9 +16,10 @@ const configuration = {
 };
 
 export async function createPeerConnection() {
-  const peerConnection = new RTCPeerConnection(
-    configuration
-  );
+  const peerConnection =
+    new RTCPeerConnection(
+      configuration
+    );
 
   const stream =
     await mediaDevices.getUserMedia({
@@ -25,13 +28,40 @@ export async function createPeerConnection() {
     });
 
   stream.getTracks().forEach((track) => {
-    peerConnection.addTrack(track, stream);
+    peerConnection.addTrack(
+      track,
+      stream
+    );
   });
 
   return {
     peerConnection,
     stream,
   };
+}
+
+export async function startAudioCapture() {
+  const stream =
+    await mediaDevices.getUserMedia({
+      audio: true,
+      video: false,
+    });
+
+  return stream;
+}
+
+export function stopAudioCapture(
+  stream: MediaStream | null
+) {
+  if (!stream) {
+    return;
+  }
+
+  stream
+    .getTracks()
+    .forEach((track) => {
+      track.stop();
+    });
 }
 
 export async function createOffer(
