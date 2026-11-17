@@ -24,7 +24,8 @@
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
-      "package": "com.ronaldo_silva.pulsoapp"
+      "package": "com.ronaldo_silva.pulsoapp",
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "static",

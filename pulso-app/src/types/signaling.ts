@@ -36,9 +36,30 @@ export type CallEndMessage = {
   to: string;
 };
 
+export type RegisterMessage = {
+  type: 'register';
+  from: string;
+};
+
+export type PttMessage = {
+  type: 'ptt-start' | 'ptt-stop';
+  from: string;
+  channelId?: string;
+  to?: string;
+};
+
+export type ChannelActionMessage = {
+  type: 'join-channel' | 'leave-channel';
+  from: string;
+  channelId: string;
+};
+
 export type SignalingMessage =
   | CallOfferMessage
   | CallAnswerMessage
   | IceCandidateMessage
   | CallRejectMessage
-  | CallEndMessage;
+  | CallEndMessage
+  | RegisterMessage
+  | PttMessage
+  | ChannelActionMessage;

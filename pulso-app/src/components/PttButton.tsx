@@ -3,35 +3,76 @@ import {
   Text,
   View,
   Pressable,
+  Vibration,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
+import { useAudioPlayer } from 'expo-audio';
+import { colors, fontSize, spacing } from '../constants/theme';
 
 type PttButtonProps = {
   onPressIn?: () => void;
   onPressOut?: () => void;
   transmitting?: boolean;
+  size?: 'normal' | 'small';
 };
 
 export default function PttButton({
   onPressIn,
   onPressOut,
   transmitting = false,
+  size = 'normal',
 }: PttButtonProps) {
+  const startPlayer = useAudioPlayer(require('../../assets/sounds/ptt_start.wav'));
+  const stopPlayer = useAudioPlayer(require('../../assets/sounds/ptt_stop.wav'));
+
+  const buttonSize =
+    size === 'small' ? 140 : 180;
+  const iconSize =
+    size === 'small' ? 36 : 48;
+
+  function handlePressIn() {
+    try {
+      Vibration.vibrate(50);
+      startPlayer.seekTo(0);
+      startPlayer.play();
+    } catch (e) {
+      console.warn('Erro ao tocar som ptt_start:', e);
+    }
+    onPressIn?.();
+  }
+
+  function handlePressOut() {
+    try {
+      Vibration.vibrate(30);
+      stopPlayer.seekTo(0);
+      stopPlayer.play();
+    } catch (e) {
+      console.warn('Erro ao tocar som ptt_stop:', e);
+    }
+    onPressOut?.();
+  }
+
   return (
     <View style={styles.container}>
       <Pressable
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
         style={[
           styles.button,
-          transmitting && styles.transmitting,
+          {
+            width: buttonSize,
+            height: buttonSize,
+            borderRadius: buttonSize / 2,
+          },
+          transmitting &&
+            styles.transmitting,
         ]}
       >
         <Ionicons
           name="mic"
-          size={48}
-          color="#fff"
+          size={iconSize}
+          color={colors.white}
         />
 
         <Text style={styles.text}>
@@ -42,7 +83,9 @@ export default function PttButton({
       </Pressable>
 
       <Text style={styles.helper}>
-        Pressione e segure para falar
+        {transmitting
+          ? 'Solte para parar'
+          : 'Pressione e segure para falar'}
       </Text>
     </View>
   );
@@ -51,34 +94,35 @@ export default function PttButton({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    marginTop: 10,
-    marginBottom: 30,
+    marginTop: spacing.sm + 2,
+    marginBottom: spacing.xxxl,
   },
 
   button: {
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: '#222',
+    backgroundColor: colors.dark,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
 
   transmitting: {
-    backgroundColor: '#dc2626',
+    backgroundColor: colors.danger,
   },
 
   text: {
-    color: '#fff',
-    fontSize: 13,
+    color: colors.white,
+    fontSize: fontSize.md,
     fontWeight: '800',
-    marginTop: 10,
+    marginTop: spacing.sm + 2,
   },
 
   helper: {
-    marginTop: 10,
-    fontSize: 13,
-    color: '#777',
+    marginTop: spacing.sm + 2,
+    fontSize: fontSize.md,
+    color: colors.gray400,
   },
 });

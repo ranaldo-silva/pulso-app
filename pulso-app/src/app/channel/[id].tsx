@@ -22,128 +22,118 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import PttButton from '../../components/PttButton';
-
+import { useChannelsStore } from '../../stores/channelsStore';
+import { useContactsStore } from '../../stores/contactsStore';
+import { usePttStore } from '../../stores/pttStore';
+import { useAuthStore } from '../../stores/authStore';
 import {
   startAudioCapture,
   stopAudioCapture,
 } from '../../services/webrtc';
+import {
+  colors,
+  fontSize,
+  radius,
+  spacing,
+  statusColors,
+} from '../../constants/theme';
 
 import type MediaStream from 'react-native-webrtc/lib/typescript/MediaStream';
 
-type Participant = {
-  id: string;
-  name: string;
-  online: boolean;
-  speaking?: boolean;
-};
-
-const participants: Participant[] = [
-  {
-    id: 'ronaldo',
-    name: 'Ronaldo',
-    online: true,
-  },
-  {
-    id: 'joao',
-    name: 'João',
-    online: true,
-  },
-  {
-    id: 'carlos',
-    name: 'Carlos',
-    online: false,
-  },
-  {
-    id: 'pedro',
-    name: 'Pedro',
-    online: true,
-  },
-];
-
 export default function ChannelScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
 
-  const { id } =
-    useLocalSearchParams<{ id: string }>();
+  const getChannelById = useChannelsStore((s) => s.getChannelById);
+  const contacts = useContactsStore((s) => s.contacts);
+  const currentUser = useAuthStore((s) => s.user);
 
-  const [transmitting, setTransmitting] =
-    useState(false);
+  const {
+    transmitting,
+    startTransmission,
+    stopTransmission,
+  } = usePttStore();
 
-  const audioStream =
-    useRef<MediaStream | null>(null);
+  const audioStream = useRef<MediaStream | null>(null);
 
   const channel = useMemo(() => {
-    if (id === 'familia') {
-      return {
-        name: 'Família',
-        description:
-          'Canal da família',
-      };
+    return (
+      getChannelById(id) || {
+        id,
+        name: 'Canal',
+        description: 'Canal de comunicação',
+        icon: 'radio-outline',
+        members: ['ronaldo'],
+        createdBy: 'user',
+        createdAt: new Date().toISOString(),
+      }
+    );
+  }, [id, getChannelById]);
+
+  // Map channel member IDs to contact / user details
+  const channelParticipants = useMemo(() => {
+    const list = [];
+
+    // Current user first
+    if (currentUser) {
+      list.push({
+        id: currentUser.id,
+        name: `${currentUser.name} (Você)`,
+        online: currentUser.status !== 'offline',
+        speaking: transmitting,
+      });
     }
 
-    return {
-      name: 'Equipe Operacional',
-      description:
-        'Comunicação da equipe',
-    };
-  }, [id]);
+    // Add other members found in contacts or defaults
+    contacts.forEach((contact) => {
+      if (channel.members.includes(contact.id)) {
+        list.push({
+          id: contact.id,
+          name: contact.name,
+          online: contact.status !== 'offline',
+          speaking: false,
+        });
+      }
+    });
+
+    return list;
+  }, [channel, currentUser, contacts, transmitting]);
 
   useEffect(() => {
     return () => {
-      stopAudioCapture(
-        audioStream.current
-      );
-
+      stopAudioCapture(audioStream.current);
       audioStream.current = null;
+      stopTransmission();
     };
   }, []);
 
-  async function startTransmission() {
+  async function handleStartPtt() {
     try {
-      const stream =
-        await startAudioCapture();
-
+      startTransmission({ channelId: id });
+      const stream = await startAudioCapture();
       audioStream.current = stream;
-
-      setTransmitting(true);
-
-      console.log(
-        'PTT: microfone iniciado'
-      );
     } catch (error) {
-      console.error(
-        'PTT: erro ao acessar microfone:',
-        error
-      );
-
-      setTransmitting(false);
+      console.warn('Erro ao capturar microfone:', error);
+      // Ptt state still active to give user feedback
     }
   }
 
-  function stopTransmission() {
-    stopAudioCapture(
-      audioStream.current
-    );
-
+  function handleStopPtt() {
+    stopAudioCapture(audioStream.current);
     audioStream.current = null;
-
-    setTransmitting(false);
-
-    console.log(
-      'PTT: microfone encerrado'
-    );
+    stopTransmission();
   }
 
   function leaveChannel() {
     router.back();
   }
 
+  const onlineMembersCount = channelParticipants.filter((p) => p.online).length;
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
-        contentContainerStyle={
-          styles.content
-        }
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
         {/* HEADER */}
@@ -151,22 +141,18 @@ export default function ChannelScreen() {
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
+            activeOpacity={0.7}
           >
             <Ionicons
               name="arrow-back"
               size={24}
-              color="#222"
+              color={colors.dark}
             />
           </TouchableOpacity>
 
           <View style={styles.headerInfo}>
-            <Text style={styles.title}>
-              {channel.name}
-            </Text>
-
-            <Text style={styles.description}>
-              {channel.description}
-            </Text>
+            <Text style={styles.title}>{channel.name}</Text>
+            <Text style={styles.description}>{channel.description}</Text>
           </View>
         </View>
 
@@ -176,21 +162,17 @@ export default function ChannelScreen() {
             <Ionicons
               name="radio"
               size={24}
-              color="#fff"
+              color={colors.white}
             />
           </View>
 
           <View style={styles.statusInfo}>
-            <Text style={styles.statusTitle}>
-              Canal ativo
-            </Text>
-
+            <Text style={styles.statusTitle}>Canal ativo</Text>
             <Text style={styles.statusText}>
-              {participants.filter(
-                (participant) =>
-                  participant.online
-              ).length}{' '}
-              participantes online
+              {onlineMembersCount}{' '}
+              {onlineMembersCount === 1
+                ? 'participante online'
+                : 'participantes online'}
             </Text>
           </View>
 
@@ -201,85 +183,60 @@ export default function ChannelScreen() {
         <View style={styles.pttSection}>
           <PttButton
             transmitting={transmitting}
-            onPressIn={startTransmission}
-            onPressOut={stopTransmission}
+            onPressIn={handleStartPtt}
+            onPressOut={handleStopPtt}
           />
         </View>
 
         {/* PARTICIPANTES */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            Participantes
-          </Text>
+          <Text style={styles.sectionTitle}>Participantes</Text>
 
           <View style={styles.participantsCard}>
-            {participants.map(
-              (participant) => (
-                <View
-                  key={participant.id}
-                  style={styles.participant}
-                >
-                  <View style={styles.avatar}>
-                    <Text
-                      style={
-                        styles.avatarText
-                      }
-                    >
-                      {participant.name
-                        .charAt(0)
-                        .toUpperCase()}
-                    </Text>
-                  </View>
+            {channelParticipants.map((participant) => (
+              <View
+                key={participant.id}
+                style={styles.participant}
+              >
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarText}>
+                    {participant.name.charAt(0).toUpperCase()}
+                  </Text>
+                </View>
 
-                  <View
-                    style={
-                      styles.participantInfo
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.participantName
-                      }
-                    >
-                      {participant.name}
-                    </Text>
+                <View style={styles.participantInfo}>
+                  <Text style={styles.participantName}>
+                    {participant.name}
+                  </Text>
 
+                  <View style={styles.participantStatus}>
                     <View
-                      style={
-                        styles.participantStatus
-                      }
-                    >
-                      <View
-                        style={[
-                          styles.statusDot,
-                          participant.online
-                            ? styles.online
-                            : styles.offline,
-                        ]}
-                      />
+                      style={[
+                        styles.statusDot,
+                        participant.online
+                          ? styles.online
+                          : styles.offline,
+                      ]}
+                    />
 
-                      <Text
-                        style={
-                          styles.participantStatusText
-                        }
-                      >
-                        {participant.online
-                          ? 'Online'
-                          : 'Offline'}
-                      </Text>
-                    </View>
+                    <Text style={styles.participantStatusText}>
+                      {participant.online ? 'Online' : 'Offline'}
+                    </Text>
                   </View>
+                </View>
 
-                  {participant.speaking && (
+                {participant.speaking && (
+                  <View style={styles.speakingBadge}>
                     <Ionicons
                       name="mic"
-                      size={20}
-                      color="#22c55e"
+                      size={16}
+                      color={colors.danger}
                     />
-                  )}
-                </View>
-              )
-            )}
+                    <Text style={styles.speakingText}>Transmitindo</Text>
+                  </View>
+                )}
+              </View>
+            ))}
           </View>
         </View>
 
@@ -292,12 +249,10 @@ export default function ChannelScreen() {
           <Ionicons
             name="exit-outline"
             size={22}
-            color="#dc2626"
+            color={colors.danger}
           />
 
-          <Text style={styles.leaveText}>
-            Sair do canal
-          </Text>
+          <Text style={styles.leaveText}>Sair do canal</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -307,28 +262,28 @@ export default function ChannelScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.background,
   },
 
   content: {
-    padding: 20,
-    paddingBottom: 40,
+    padding: spacing.xl,
+    paddingBottom: spacing.xxxl,
   },
 
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
 
   backButton: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
   },
 
   headerInfo: {
@@ -336,34 +291,34 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    fontSize: 24,
+    fontSize: fontSize['3xl'],
     fontWeight: '700',
-    color: '#222',
+    color: colors.dark,
   },
 
   description: {
-    marginTop: 4,
-    fontSize: 13,
-    color: '#777',
+    marginTop: spacing.xs,
+    fontSize: fontSize.md,
+    color: colors.gray400,
   },
 
   statusCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 20,
+    backgroundColor: colors.card,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
+    marginBottom: spacing.xl,
   },
 
   statusIcon: {
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#222',
+    backgroundColor: colors.dark,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
   },
 
   statusInfo: {
@@ -371,67 +326,67 @@ const styles = StyleSheet.create({
   },
 
   statusTitle: {
-    fontSize: 16,
+    fontSize: fontSize.xl,
     fontWeight: '600',
-    color: '#222',
+    color: colors.dark,
   },
 
   statusText: {
-    marginTop: 4,
-    fontSize: 13,
-    color: '#777',
+    marginTop: spacing.xs,
+    fontSize: fontSize.md,
+    color: colors.gray400,
   },
 
   onlineDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#22c55e',
+    backgroundColor: colors.success,
   },
 
   pttSection: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
 
   section: {
-    marginTop: 10,
+    marginTop: spacing.sm,
   },
 
   sectionTitle: {
-    fontSize: 18,
+    fontSize: fontSize['2xl'],
     fontWeight: '700',
-    color: '#222',
-    marginBottom: 10,
+    color: colors.dark,
+    marginBottom: spacing.md,
   },
 
   participantsCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    paddingHorizontal: 16,
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
   },
 
   participant: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: spacing.base,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: colors.separator,
   },
 
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#222',
+    backgroundColor: colors.dark,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
   },
 
   avatarText: {
-    color: '#fff',
-    fontSize: 18,
+    color: colors.white,
+    fontSize: fontSize['2xl'],
     fontWeight: '700',
   },
 
@@ -440,15 +395,15 @@ const styles = StyleSheet.create({
   },
 
   participantName: {
-    fontSize: 15,
+    fontSize: fontSize.lg,
     fontWeight: '600',
-    color: '#222',
+    color: colors.dark,
   },
 
   participantStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
 
   statusDot: {
@@ -459,32 +414,48 @@ const styles = StyleSheet.create({
   },
 
   online: {
-    backgroundColor: '#22c55e',
+    backgroundColor: colors.success,
   },
 
   offline: {
-    backgroundColor: '#999',
+    backgroundColor: colors.gray200,
   },
 
   participantStatusText: {
-    fontSize: 12,
-    color: '#777',
+    fontSize: fontSize.sm,
+    color: colors.gray400,
+  },
+
+  speakingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
+    gap: 4,
+  },
+
+  speakingText: {
+    fontSize: fontSize.xs,
+    color: colors.danger,
+    fontWeight: '600',
   },
 
   leaveButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    paddingVertical: 15,
-    marginTop: 24,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    paddingVertical: spacing.lg,
+    marginTop: spacing.xxl,
   },
 
   leaveText: {
-    marginLeft: 8,
-    fontSize: 14,
+    marginLeft: spacing.sm,
+    fontSize: fontSize.base,
     fontWeight: '600',
-    color: '#dc2626',
+    color: colors.danger,
   },
 });

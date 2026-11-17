@@ -1,10 +1,18 @@
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+} from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
+import { colors, fontSize, spacing } from '../constants/theme';
 
 type UserCardProps = {
   name: string;
   status: string;
   online: boolean;
+  statusColor?: string;
   onCall?: () => void;
   onPtt?: () => void;
 };
@@ -13,9 +21,16 @@ export default function UserCard({
   name,
   status,
   online,
+  statusColor,
   onCall,
   onPtt,
 }: UserCardProps) {
+  const dotColor = statusColor
+    ? statusColor
+    : online
+      ? colors.success
+      : colors.gray200;
+
   return (
     <View style={styles.container}>
       <View style={styles.avatar}>
@@ -25,34 +40,44 @@ export default function UserCard({
       </View>
 
       <View style={styles.info}>
-        <Text style={styles.name}>{name}</Text>
+        <Text style={styles.name}>
+          {name}
+        </Text>
 
         <View style={styles.statusContainer}>
           <View
             style={[
               styles.statusDot,
-              online ? styles.online : styles.offline,
+              { backgroundColor: dotColor },
             ]}
           />
 
-          <Text style={styles.status}>{status}</Text>
+          <Text style={styles.status}>
+            {status}
+          </Text>
         </View>
       </View>
 
       <View style={styles.actions}>
-        <TouchableOpacity onPress={onPtt}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onPtt}
+        >
           <Ionicons
             name="mic-outline"
-            size={24}
-            color="#222"
+            size={22}
+            color={colors.dark}
           />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={onCall}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={onCall}
+        >
           <Ionicons
             name="call-outline"
-            size={24}
-            color="#222"
+            size={22}
+            color={colors.dark}
           />
         </TouchableOpacity>
       </View>
@@ -64,38 +89,41 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.separator,
   },
 
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#222',
+    backgroundColor: colors.dark,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   avatarText: {
-    color: '#fff',
+    color: colors.white,
     fontSize: 20,
     fontWeight: 'bold',
   },
 
   info: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: spacing.md,
   },
 
   name: {
-    fontSize: 16,
+    fontSize: fontSize.xl,
     fontWeight: '600',
+    color: colors.black,
   },
 
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
 
   statusDot: {
@@ -105,21 +133,22 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
 
-  online: {
-    backgroundColor: '#22c55e',
-  },
-
-  offline: {
-    backgroundColor: '#999',
-  },
-
   status: {
-    fontSize: 13,
-    color: '#666',
+    fontSize: fontSize.md,
+    color: colors.gray500,
   },
 
   actions: {
     flexDirection: 'row',
-    gap: 18,
+    gap: spacing.md,
+  },
+
+  actionButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

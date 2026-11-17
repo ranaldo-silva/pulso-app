@@ -1,15 +1,24 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
+import { colors, fontSize, radius, spacing } from '../constants/theme';
 
 type ChannelCardProps = {
   name: string;
   members: number;
+  icon?: keyof typeof Ionicons.glyphMap;
   onPress?: () => void;
 };
 
 export default function ChannelCard({
   name,
   members,
+  icon = 'radio',
   onPress,
 }: ChannelCardProps) {
   return (
@@ -20,9 +29,9 @@ export default function ChannelCard({
     >
       <View style={styles.iconContainer}>
         <Ionicons
-          name="radio"
+          name={icon}
           size={24}
-          color="#fff"
+          color={colors.white}
         />
       </View>
 
@@ -32,14 +41,17 @@ export default function ChannelCard({
         </Text>
 
         <Text style={styles.members}>
-          {members} {members === 1 ? 'participante' : 'participantes'}
+          {members}{' '}
+          {members === 1
+            ? 'participante'
+            : 'participantes'}
         </Text>
       </View>
 
       <Ionicons
         name="chevron-forward"
         size={22}
-        color="#999"
+        color={colors.gray200}
       />
     </TouchableOpacity>
   );
@@ -49,20 +61,20 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 10,
+    backgroundColor: colors.card,
+    padding: radius.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.sm + 2,
   },
 
   iconContainer: {
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: '#222',
+    backgroundColor: colors.dark,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: spacing.md,
   },
 
   info: {
@@ -70,14 +82,14 @@ const styles = StyleSheet.create({
   },
 
   name: {
-    fontSize: 16,
+    fontSize: fontSize.xl,
     fontWeight: '600',
+    color: colors.black,
   },
 
   members: {
-    marginTop: 4,
-    fontSize: 13,
-    color: '#777',
+    marginTop: spacing.xs,
+    fontSize: fontSize.md,
+    color: colors.gray400,
   },
 });
-
